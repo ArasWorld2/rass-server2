@@ -1,7 +1,7 @@
 const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder } = require('discord.js');
 
 // Changed from WIZZ_PURPLE to DOLOMITI_TURQUOISE
-const DOLOMITI_TURQUOISE = '#006570'; 
+const DOLOMITI_TURQUOISE = '#002370'; 
 
 const ROLES = [
   { key: 'dispatchSupervisor',  label: 'Flight Dispatcher',     emoji: '<:WP_person:1503497022211227850>', max: 1 },
@@ -15,7 +15,7 @@ const ROLES = [
   { key: 'dispatchCoordinator', label: 'Customer Service',       emoji: '<:WP_share:1503497105908437032>',  max: 3 },
   { key: 'bagDropAgent',        label: 'Bag Drop Agent',         emoji: '<:WP_share:1503497105908437032>', max: 3 },
   { key: 'gateAgent',           label: 'Gate Agent',             emoji: '<:WP_helpdesk:1503497171243110440>', max: 1 },
-  { key: 'loungeAttendant',     label: 'Lounge Attendant',       emoji: '<:WP_link:1503497040406253769>', max: 2 },
+  { key: 'loungeAttendant',     label: 'Lounge Attendant',       emoji: '<:WP_link:197040406253769>', max: 2 },
 ];
 
 const FLIGHT_ROLE_KEYS = ['dispatchSupervisor', 'flightSupervisor', 'captain', 'firstOfficer', 'purser', 'cabinCrew', 'groundHandling', 'tarmacSupervisor'];
@@ -52,8 +52,8 @@ function buildMainEmbed(flight, allocation) {
   return new EmbedBuilder()
     .setColor(DOLOMITI_TURQUOISE) // Updated color variable
     .setAuthor({ 
-      name: 'Air Dolomiti — Flight Operations', // Updated company name
-      iconURL: 'https://images.squarespace-cdn.com/content/v1/56c6418840245999ab19b222/1531235334238-A3MRVDR0J270S399ZTLK/Air+Dolomiti.png' // Updated logo
+      name: 'LOT — Flight Operations', // Updated company name
+      iconURL: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR3xR5mb7Li4F1t4v6L0ITKumJHD-7fZQDLTCirBsdvfH2_VvHVVqY3Wy4&s=10g' // Updated logo
     })
     .addFields([
       {
@@ -62,7 +62,7 @@ function buildMainEmbed(flight, allocation) {
       },
       {
         name: '\u200B',
-        value: `A new **Air Dolomiti** Briefing has been published. **Ensure to** read all **information** contained within this message. **Be reminded** flight info is subject to alter. In order to allocate, interact with the dropdown below.`, // Updated reference text
+        value: `A new **LOT** Briefing has been published. **Ensure to** read all **information** contained within this message. **Be reminded** flight info is subject to alter. In order to allocate, interact with the dropdown below.`, // Updated reference text
       },
       {
         name: '\u200B',
