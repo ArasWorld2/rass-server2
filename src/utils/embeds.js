@@ -1,7 +1,6 @@
 const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder } = require('discord.js');
 
-// Changed from WIZZ_PURPLE to DOLOMITI_TURQUOISE
-const DOLOMITI_TURQUOISE = '#002370'; 
+const EMBED_COLOR = '#002370'; 
 
 const ROLES = [
   { key: 'dispatchSupervisor',  label: 'Flight Dispatcher',     emoji: '<:WP_person:1503497022211227850>', max: 1 },
@@ -37,48 +36,46 @@ function buildRoleLines(keys, allocation) {
 }
 
 function buildMainEmbed(flight, allocation) {
-  const infoLines = [
-    ` **Route:** ${flight.from || 'TBD'} → ${flight.to || 'TBD'}`,
-    ` **Plane:** ${flight.aircraft || 'TBD'}`,
-    ` **Gate:** ${flight.gate || 'TBA'}`,
-    ` **Personnel Join Time:** ${flight.staffTime || 'TBA'} | **Passenger Joining Time:** ${flight.passengerTime || 'TBA'}`,
-    ` **Boarding Time:** ${flight.boardingTime || 'TBA'}`,
-    ` **Operations Closure:** ${flight.operationsClosure || 'TBA'}`,
-  ].join('\n');
+  const flightNumber = flight.number || flight.flightNumber || 'LOXXXX';
+  const route = `**Route:** ${flight.from || 'Departure'} ➔ ${flight.to || 'Destination'}`;
+  const plane = `**Aircraft:** ${flight.aircraft || 'Boeing XXX'}, ${flight.registration || 'SP-XXX'}`;
+  
+  // Format time as Hammertime if a timestamp/date object is provided
+  let formattedTime = flight.date || flight.staffTime || 'Hammertime';
+  if (flight.timestamp) {
+    const timeInSeconds = Math.floor(new Date(flight.timestamp).getTime() / 1000);
+    formattedTime = `<t:${timeInSeconds}:F>`;
+  } else if (!isNaN(Date.parse(flight.date))) {
+    const timeInSeconds = Math.floor(new Date(flight.date).getTime() / 1000);
+    formattedTime = `<t:${timeInSeconds}:F>`;
+  }
+  
+  const dateTime = `**Date & Time:** ${formattedTime}`;
+
+  const descriptionText = 
+    `### Flight Schedule\n\n` +
+    `▶ ${route}\n` +
+    `▶ ${plane}\n` +
+    `▶ ${dateTime}\n\n` +
+    `> **If you wish to allocate yourself to this departure, please click the 👍 reaction below.** By reacting, you are confirming that you will be available for the selected time slot and are committed to attending the session. Please ensure you are able to participate before allocating yourself, as your reaction will be considered a confirmation of your availability.`;
 
   const flightRoleLines = buildRoleLines(FLIGHT_ROLE_KEYS, allocation);
   const groundRoleLines = buildRoleLines(GROUND_ROLE_KEYS, allocation);
 
-  return new EmbedBuilder()
-    .setColor(DOLOMITI_TURQUOISE) // Updated color variable
-    .setAuthor({ 
-      name: 'LOT — Flight Operations', // Updated company name
-      iconURL: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR3xR5mb7Li4F1t4v6L0ITKumJHD-7fZQDLTCirBsdvfH2_VvHVVqY3Wy4&s=10g' // Updated logo
-    })
-    .addFields([
-      {
-        name: '<:WP_takeoff:1503497120760729771> Flight Briefing',
-        value: `__**${flight.number || 'N/A'}**__ • ${flight.date || new Date().toDateString()}`,
-      },
-      {
-        name: '\u200B',
-        value: `A new **LOT** Briefing has been published. **Ensure to** read all **information** contained within this message. **Be reminded** flight info is subject to alter. In order to allocate, interact with the dropdown below.`, // Updated reference text
-      },
-      {
-        name: '\u200B',
-        value: infoLines || '\u200B',
-      },
-      {
-        name: 'Flight Roles',
-        value: flightRoleLines || '\u200B',
-      },
-      {
-        name: 'Ground Roles',
-        value: groundRoleLines || '\u200B',
-      }
-    ])
-    .setFooter({ text: 'Air Dolomiti Flight Operations • Select a role below to allocate' }) // Updated footer
-    .setTimestamp();
+  const embed = new EmbedBuilder()
+    .setColor(EMBED_COLOR)
+    .setTitle(`🛫 ${flightNumber}`)
+    .setDescription(descriptionText);
+
+  // If role allocations are present, add them as fields below
+  if (flightRoleLines || groundRoleLines) {
+    embed.addFields([
+      { name: 'Flight Roles', value: flightRoleLines || 'None', inline: false },
+      { name: 'Ground Roles', value: groundRoleLines || 'None', inline: false },
+    ]);
+  }
+
+  return embed;
 }
 
 function buildDropdown() {
@@ -101,4 +98,12 @@ function buildButtons() {
   return [buildDropdown()];
 }
 
-module.exports = { ROLES, getRoleConfig, buildFlightEmbed: buildMainEmbed, buildAllocationEmbed: buildMainEmbed, buildMainEmbed, buildButtons, buildDropdown };
+module.exports = { 
+  ROLES, 
+  getRoleConfig, 
+  buildFlightEmbed: buildMainEmbed, 
+  buildAllocationEmbed: buildMainEmbed, 
+  buildMainEmbed, 
+  buildButtons, 
+  buildDropdown 
+};

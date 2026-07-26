@@ -8,57 +8,51 @@ module.exports = {
   data: new SlashCommandBuilder()
     .setName('postflight')
     .setDescription('Post a flight allocation sheet')
-    .addStringOption(o => o.setName('number').setDescription('Flight number, ').setRequired(true))
+    .addStringOption(o => o.setName('number').setDescription('Flight number (e.g. LOXXXX)').setRequired(true))
     .addStringOption(o => o.setName('from').setDescription('Departure airport').setRequired(true))
     .addStringOption(o => o.setName('to').setDescription('Arrival airport').setRequired(true))
-    .addStringOption(o => o.setName('staff_time').setDescription('Duty report time, e.g. <t:1234567890:t> or 19:40').setRequired(true))
-    .addStringOption(o => o.setName('passenger_time').setDescription('Passenger report time, e.g. 20:00').setRequired(true))
-    .addStringOption(o => o.setName('aircraft').setDescription('Aircraft type, e.g. Airbus A321neo').setRequired(true))
-    .addStringOption(o => o.setName('date').setDescription('Flight date, e.g. 10 May 2026').setRequired(false))
-    .addStringOption(o => o.setName('gate').setDescription('Departure gate, e.g. B12').setRequired(false))
-    .addStringOption(o => o.setName('boarding_time').setDescription('Boarding time, e.g. 10:00').setRequired(false))
-    .addStringOption(o => o.setName('operations_closure').setDescription('Operations closure time, e.g. 10:15').setRequired(false)),
+    .addStringOption(o => o.setName('aircraft').setDescription('Aircraft type (e.g. Boeing 737)').setRequired(true))
+    .addStringOption(o => o.setName('registration').setDescription('Aircraft registration (e.g. SP-LWA)').setRequired(true))
+    .addStringOption(o => o.setName('date').setDescription('Flight date/timestamp (e.g. 1712345678 or Hammertime)').setRequired(true))
+    .addIntegerOption(o => o.setName('reminder_minutes').setDescription('DM reminder time prior to flight (in minutes)').setRequired(false)),
 
   async execute(interaction) {
     if (!await checkRole(interaction)) return;
     await interaction.deferReply({ ephemeral: true });
 
     const flight = {
-      number:        interaction.options.getString('number').toUpperCase(),
-      from:          interaction.options.getString('from'),
-      to:            interaction.options.getString('to'),
-      staffTime:     interaction.options.getString('staff_time'),
-      passengerTime: interaction.options.getString('passenger_time'),
-      aircraft:      interaction.options.getString('aircraft'),
-      date:              interaction.options.getString('date') || new Date().toDateString(),
-      gate:              interaction.options.getString('gate') || 'TBA',
-      boardingTime:      interaction.options.getString('boarding_time') || 'TBA',
-      operationsClosure: interaction.options.getString('operations_closure') || 'TBA',
+      number:       interaction.options.getString('number').toUpperCase(),
+      from:         interaction.options.getString('from'),
+      to:           interaction.options.getString('to'),
+      aircraft:     interaction.options.getString('aircraft'),
+      registration: interaction.options.getString('registration'),
+      date:         interaction.options.getString('date'),
+      timestamp:    interaction.options.getString('date'),
     };
 
-    const reminderMinutes = interaction.options.getInteger('reminder_minutes') ?? 15;
+    const reminderMinutes = interaction.options.getInteger('reminder_minutes') ?? 60;
     const embed   = buildMainEmbed(flight, {});
     const buttons = buildButtons();
 
+    // 1. Send the flight embed message
     const message = await interaction.channel.send({
       embeds: [embed],
       components: buttons,
     });
 
+    // 2. Add the thumbs up reaction (👍) requested for self-allocation
+    await message.react('👍');
+
+    // 3. Save allocation record to the database
     const allocation = await Allocation.create({
       messageId: message.id,
       channelId: interaction.channelId,
       flight,
     });
 
-    if (flight.staffTimeUtc) {
-      scheduleReminders(interaction.client, allocation, reminderMinutes);
-    }
+    // 4. Schedule briefing/reminders
+    scheduleReminders(interaction.client, allocation, reminderMinutes);
 
-    const reminderNote = flight.staffTimeUtc
-      ? `DM reminders will be sent **${reminderMinutes} minutes** before duty report time.`
-      : `No \`staff_time_utc\` provided — DM reminders disabled.`;
-
-    await interaction.editReply(`✅ Flight **${flight.number}** posted! ${reminderNote}`);
+    await interaction.editReply(`✅ Flight **${flight.number}** posted! Automatic briefing release scheduled for **${reminderMinutes} minutes** prior to departure.`);
   },
 };
