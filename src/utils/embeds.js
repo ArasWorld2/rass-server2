@@ -37,9 +37,9 @@ function buildMainEmbed(flight) {
 }
 
 /**
- * Builds the 1-Hour Briefing Release matching your requested format
+ * Builds the 1-Hour Briefing Release text message
  */
-function buildBriefingReleaseEmbed(flight, members = []) {
+function buildBriefingReleaseEmbed(flight, members = [], dispatcherId = null) {
   const flightNumber = flight.number || flight.flightNumber || 'LOXXXX';
   const from = flight.from || 'DEST';
   const to = flight.to || 'ARRIVAL';
@@ -51,15 +51,15 @@ function buildBriefingReleaseEmbed(flight, members = []) {
     formattedTime = `<t:${timeInSeconds}:F>`;
   }
 
-  // 1. Sort defined roles by priority
+  // 1. Sort roles by priority
   const sortedRoles = [...ROLES].sort((a, b) => a.priority - b.priority);
 
-  // 2. Track assigned assignments and occupied user IDs
+  // 2. Track assignments
   const assignments = {};
   ROLES.forEach(r => assignments[r.key] = []);
   const assignedUserIds = new Set();
 
-  // 3. Process each role in priority order to prevent double assignments
+  // 3. Process each role in priority order
   for (const roleConfig of sortedRoles) {
     if (!roleConfig.discordRoleId || roleConfig.discordRoleId === 'ROLE_ID_HERE') continue;
 
@@ -74,13 +74,12 @@ function buildBriefingReleaseEmbed(flight, members = []) {
     }
   }
 
-  // Helper to format assigned members string
   const getRoleText = (key) => {
     const ids = assignments[key] || [];
     return ids.length > 0 ? ids.map(id => `<@${id}>`).join(', ') : '';
   };
 
-  const dispatcherMention = flight.dispatcherId ? `<@${flight.dispatcherId}>` : '';
+  const dispatcherMention = dispatcherId ? `<@${dispatcherId}>` : (flight.dispatcherId ? `<@${flight.dispatcherId}>` : '');
 
   return (
     `## <:LOTTail:1243912109125795920> ${flightNumber}\n` +
