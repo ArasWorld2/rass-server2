@@ -48,7 +48,7 @@ async function scheduleReminders(client, allocation, minutesBefore = 60) {
       const message = await channel.messages.fetch(allocation.messageId).catch(() => null);
       if (!message) return;
 
-      // Collect users who reacted with custom LOTSYes reaction
+      // Collect users who reacted with custom LOTSYes reaction (1519638064945954908)
       const reaction = message.reactions.cache.get('1519638064945954908');
       const reactedMembers = [];
 
@@ -66,10 +66,16 @@ async function scheduleReminders(client, allocation, minutesBefore = 60) {
         }
       }
 
-      // Generate the briefing release content
-      const briefingContent = buildBriefingReleaseEmbed(flight, reactedMembers, allocation.dispatcherId);
+      // Merge dispatcherId into flight object before building briefing release
+      const briefingFlight = {
+        ...flight,
+        dispatcherId: allocation.dispatcherId
+      };
 
-      // Post 1h briefing release directly
+      // Generate the briefing release content
+      const briefingContent = buildBriefingReleaseEmbed(briefingFlight, reactedMembers);
+
+      // Post briefing message directly
       await channel.send({ content: briefingContent });
 
       console.log(`✅ Released briefing for flight ${flight.number} with ${reactedMembers.length} allocated members.`);

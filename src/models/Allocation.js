@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const allocationSchema = new mongoose.Schema({
   messageId: { type: String, required: true, unique: true },
   channelId: { type: String, required: true },
+  dispatcherId: { type: String }, // Stores the user ID who ran /postflight
   flight: {
     number: String,
     from: String,
@@ -11,8 +12,12 @@ const allocationSchema = new mongoose.Schema({
     staffTimeUtc: String,
     passengerTime: String,
     aircraft: String,
+    registration: String, // Added registration
     date: String,
-    gate: String,
+    timestamp: String,
+    gate: { type: String, default: 'TBA' },
+    depRunway: { type: String, default: 'TBA' }, // Added departure runway
+    arrRunway: { type: String, default: 'TBA' }, // Added arrival runway
     boardingTime: String,
     operationsClosure: String,
   },
