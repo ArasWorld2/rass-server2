@@ -29,22 +29,22 @@ module.exports = {
       timestamp:    interaction.options.getString('date'),
     };
 
-    const embed = buildMainEmbed(flight);
+    const messageContent = buildMainEmbed(flight);
 
-    // 1. Send schedule embed
-    const message = await interaction.channel.send({ embeds: [embed] });
+    // Send as plain text content (No embed box)
+    const message = await interaction.channel.send({ content: messageContent });
 
-    // 2. React with 👍 for allocations
-    await message.react('👍');
+    // React with the custom LOTSYes reaction
+    await message.react('1519638064945954908');
 
-    // 3. Save allocation document in MongoDB
+    // Store record in MongoDB
     const allocation = await Allocation.create({
       messageId: message.id,
       channelId: interaction.channelId,
       flight,
     });
 
-    // 4. Schedule 1h briefing release automation
+    // Schedule 1h briefing release automation
     scheduleReminders(interaction.client, allocation, 60);
 
     await interaction.editReply(`✅ Flight **${flight.number}** schedule posted! Briefing release scheduled for 1 hour prior to departure.`);

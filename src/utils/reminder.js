@@ -41,8 +41,8 @@ async function scheduleReminders(client, allocation, minutesBefore = 60) {
       const message = await channel.messages.fetch(allocation.messageId).catch(() => null);
       if (!message) return;
 
-      // Collect all users who reacted with 👍
-      const reaction = message.reactions.cache.get('👍');
+      // Collect users who reacted with <:LOTSYes:1519638064945954908>
+      const reaction = message.reactions.cache.get('1519638064945954908');
       const userIds = [];
 
       if (reaction) {
@@ -50,14 +50,13 @@ async function scheduleReminders(client, allocation, minutesBefore = 60) {
         users.filter(u => !u.bot).forEach(u => userIds.push(u.id));
       }
 
-      // Generate the briefing embed containing role roster
-      const briefingEmbed = buildBriefingReleaseEmbed(flight, userIds);
+      // Generate the briefing release message containing role roster
+      const briefingContent = buildBriefingReleaseEmbed(flight, userIds);
       const userPings = userIds.map(id => `<@${id}>`).join(' ');
 
-      // Post the briefing release in the channel
+      // Post the briefing release in channel
       await channel.send({
-        content: `📢 **1-HOUR FLIGHT BRIEFING RELEASE** ${userPings}`,
-        embeds: [briefingEmbed]
+        content: `📢 **1-HOUR FLIGHT BRIEFING RELEASE** ${userPings}\n\n${briefingContent}`
       });
 
       console.log(`✅ Released briefing for flight ${flight.number} with ${userIds.length} allocated users.`);

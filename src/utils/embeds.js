@@ -1,7 +1,3 @@
-const { EmbedBuilder } = require('discord.js');
-
-const EMBED_COLOR = '#002370';
-
 const ROLES = [
   { key: 'dispatchSupervisor',  label: 'Flight Dispatcher',     emoji: '<:WP_person:1503497022211227850>', max: 1 },
   { key: 'flightSupervisor',    label: 'Flight Supervisor',      emoji: '<:WP_person:1503497022211227850>', max: 2 },
@@ -21,40 +17,38 @@ const FLIGHT_ROLE_KEYS = ['dispatchSupervisor', 'flightSupervisor', 'captain', '
 const GROUND_ROLE_KEYS = ['dispatchCoordinator', 'bagDropAgent', 'gateAgent', 'loungeAttendant'];
 
 /**
- * Builds initial flight schedule embed posted by /postflight
+ * Builds the plain-text flight schedule message (no embed container)
  */
 function buildMainEmbed(flight) {
   const flightNumber = flight.number || flight.flightNumber || 'LOXXXX';
-  const route = `**Route:** ${flight.from || 'Departure'} ➔ ${flight.to || 'Destination'}`;
-  const plane = `**Aircraft:** ${flight.aircraft || 'Boeing XXX'}, ${flight.registration || 'SP-XXX'}`;
-  
+  const from = flight.from || 'Departure';
+  const to = flight.to || 'Destination';
+  const aircraft = flight.aircraft || 'Boeing XXX';
+  const reg = flight.registration || 'SP-XXX';
+
   let formattedTime = flight.date || flight.staffTime || 'Hammertime';
   if (flight.timestamp && !isNaN(flight.timestamp)) {
     const timeInSeconds = Math.floor(parseInt(flight.timestamp, 10) / (flight.timestamp > 1e11 ? 1000 : 1));
     formattedTime = `<t:${timeInSeconds}:F>`;
   }
 
-  const descriptionText = 
-    `### Flight Schedule\n\n` +
-    `▶ ${route}\n` +
-    `▶ ${plane}\n` +
-    `▶ **Date & Time:** ${formattedTime}\n\n` +
-    `> **If you wish to allocate yourself to this departure, please click the 👍 reaction below.** By reacting, you are confirming that you will be available for the selected time slot and are committed to attending the session. Please ensure you are able to participate before allocating yourself, as your reaction will be considered a confirmation of your availability.`;
-
-  return new EmbedBuilder()
-    .setColor(EMBED_COLOR)
-    .setTitle(`🛫 ${flightNumber}`)
-    .setDescription(descriptionText);
+  return (
+    `# <:LOTTail:1243912109125795920> ${flightNumber}\n` +
+    `-# Flight Schedule\n\n` +
+    `<:LOTSArrow:1519637984952061972> **Route:** ${from} → ${to}\n` +
+    `<:LOTSArrow:1519637984952061972> **Aircraft:** ${aircraft}, ${reg}\n` +
+    `<:LOTSArrow:1519637984952061972> **Date & Time:** ${formattedTime}\n\n` +
+    `> **__If you wish to allocate yourself to this departure, please click the <:LOTSYes:1519638064945954908> reaction below__**. By reacting, you are confirming that you will be available for the selected time slot and are committed to attending the session. Please ensure you are able to participate before allocating yourself, as your reaction will be considered a __confirmation of your availability.__`
+  );
 }
 
 /**
- * Builds the 1-Hour Briefing Release embed containing roles populated with reacted users
+ * Builds the 1-Hour Briefing Release text message with filled role allocations
  */
 function buildBriefingReleaseEmbed(flight, userIds = []) {
   const flightNumber = flight.number || flight.flightNumber || 'LOXXXX';
-  
   let userIndex = 0;
-  
+
   const formatRoleSection = (keys) => {
     return keys.map(key => {
       const role = ROLES.find(r => r.key === key);
@@ -75,15 +69,12 @@ function buildBriefingReleaseEmbed(flight, userIds = []) {
   const flightRoleLines = formatRoleSection(FLIGHT_ROLE_KEYS);
   const groundRoleLines = formatRoleSection(GROUND_ROLE_KEYS);
 
-  return new EmbedBuilder()
-    .setColor(EMBED_COLOR)
-    .setTitle(`📢 Flight Briefing Release — ${flightNumber}`)
-    .setDescription(`Briefing details for flight **${flightNumber}** (${flight.from} ➔ ${flight.to}). Below is the final role roster for allocated personnel.`)
-    .addFields([
-      { name: 'Flight Roles', value: flightRoleLines || 'None', inline: false },
-      { name: 'Ground Roles', value: groundRoleLines || 'None', inline: false },
-    ])
-    .setTimestamp();
+  return (
+    `# 📢 Flight Briefing Release — ${flightNumber}\n` +
+    `Briefing details for flight **${flightNumber}** (${flight.from} → ${flight.to}). Below is the final role roster for allocated personnel:\n\n` +
+    `### Flight Roles\n${flightRoleLines || 'None'}\n\n` +
+    `### Ground Roles\n${groundRoleLines || 'None'}`
+  );
 }
 
 module.exports = { 
