@@ -1,25 +1,20 @@
 const { buildBriefingReleaseEmbed } = require('./embeds');
 
-/**
- * Parses date input, Unix timestamps, or Discord Hammertime strings like <t:1785082740:F>
- */
 function parseStaffTime(staffTime) {
   try {
     if (!staffTime) return null;
 
-    // 1. Extract digits if formatted as Hammertime: <t:1785082740:F> -> 1785082740
+    // Extract raw digits if formatted as Hammertime: <t:1785082740:F> -> 1785082740
     const hammertimeMatch = String(staffTime).match(/<t:(\d+)(?::\w+)?/);
     if (hammertimeMatch) {
       staffTime = hammertimeMatch[1];
     }
 
-    // 2. Parse Unix timestamp (seconds or milliseconds)
     if (!isNaN(staffTime)) {
       const ts = parseInt(staffTime, 10);
       return new Date(ts > 1e11 ? ts : ts * 1000);
     }
 
-    // 3. Fallback standard date parsing
     const cleaned = String(staffTime).replace(/(\d+)(st|nd|rd|th)/, '$1');
     const date = new Date(cleaned);
     if (!isNaN(date.getTime())) return date;
@@ -78,13 +73,15 @@ async function scheduleReminders(client, allocation, minutesBefore = 60) {
         }
       }
 
-      // Generate the briefing release message checking members against role IDs
-      const briefingContent = buildBriefingReleaseEmbed(flight, reactedMembers);
-      const userPings = reactedMembers.map(m => `<@${m.id}>`).join(' ');
+      // Generate the briefing release message
+      const briefingContent = buildBriefingReleaseEmbed({
+        ...flight,
+        dispatcherId: allocation.dispatcherId
+      }, reactedMembers);
 
-      // Send 1h briefing release message in channel
+      // Send 1h briefing release directly without top announcement header
       await channel.send({
-        content: `📢 **1-HOUR FLIGHT BRIEFING RELEASE** ${userPings}\n\n${briefingContent}`
+        content: briefingContent
       });
 
       console.log(`✅ Released briefing for flight ${flight.number} with ${reactedMembers.length} allocated members.`);

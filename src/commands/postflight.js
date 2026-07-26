@@ -13,11 +13,14 @@ module.exports = {
     .addStringOption(o => o.setName('to').setDescription('Arrival airport').setRequired(true))
     .addStringOption(o => o.setName('aircraft').setDescription('Aircraft type (e.g. Boeing 737)').setRequired(true))
     .addStringOption(o => o.setName('registration').setDescription('Aircraft registration (e.g. SP-LWA)').setRequired(true))
-    .addStringOption(o => o.setName('date').setDescription('Flight timestamp or date string').setRequired(true)),
+    .addStringOption(o => o.setName('date').setDescription('Flight timestamp or date string').setRequired(true))
+    .addStringOption(o => o.setName('gate').setDescription('Gate & Stand (e.g. B12 / Stand 4)').setRequired(false))
+    .addStringOption(o => o.setName('dep_runway').setDescription('Departure Runway (e.g. 29)').setRequired(false))
+    .addStringOption(o => o.setName('arr_runway').setDescription('Arrival Runway (e.g. 27L)').setRequired(false)),
 
   async execute(interaction) {
     if (!await checkRole(interaction)) return;
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: 64 });
 
     const flight = {
       number:       interaction.options.getString('number').toUpperCase(),
@@ -27,6 +30,9 @@ module.exports = {
       registration: interaction.options.getString('registration'),
       date:         interaction.options.getString('date'),
       timestamp:    interaction.options.getString('date'),
+      gate:         interaction.options.getString('gate') || 'TBA',
+      depRunway:    interaction.options.getString('dep_runway') || 'TBA',
+      arrRunway:    interaction.options.getString('arr_runway') || 'TBA',
     };
 
     const messageContent = buildMainEmbed(flight);
@@ -41,7 +47,7 @@ module.exports = {
     const allocation = await Allocation.create({
       messageId: message.id,
       channelId: interaction.channelId,
-      dispatcherId: interaction.user.id, // Stores the user who ran /postflight
+      dispatcherId: interaction.user.id,
       flight,
     });
 
