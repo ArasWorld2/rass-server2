@@ -1,6 +1,6 @@
-const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder } = require('discord.js');
+const { EmbedBuilder } = require('discord.js');
 
-const EMBED_COLOR = '#002370'; 
+const EMBED_COLOR = '#002370';
 
 const ROLES = [
   { key: 'dispatchSupervisor',  label: 'Flight Dispatcher',     emoji: '<:WP_person:1503497022211227850>', max: 1 },
@@ -20,90 +20,74 @@ const ROLES = [
 const FLIGHT_ROLE_KEYS = ['dispatchSupervisor', 'flightSupervisor', 'captain', 'firstOfficer', 'purser', 'cabinCrew', 'groundHandling', 'tarmacSupervisor'];
 const GROUND_ROLE_KEYS = ['dispatchCoordinator', 'bagDropAgent', 'gateAgent', 'loungeAttendant'];
 
-function getRoleConfig(key) {
-  return ROLES.find(r => r.key === key);
-}
-
-function buildRoleLines(keys, allocation) {
-  return keys.map(key => {
-    const role = ROLES.find(r => r.key === key);
-    if (!role) return '';
-    const filled = (allocation && allocation[role.key]) || [];
-    const count = `(${filled.length}/${role.max})`;
-    const members = filled.length > 0 ? ' ' + filled.map(id => `<@${id}>`).join(', ') : '';
-    return `${role.emoji} **${role.label}** ${count}${members}`;
-  }).filter(Boolean).join('\n');
-}
-
-function buildMainEmbed(flight, allocation) {
+/**
+ * Builds initial flight schedule embed posted by /postflight
+ */
+function buildMainEmbed(flight) {
   const flightNumber = flight.number || flight.flightNumber || 'LOXXXX';
   const route = `**Route:** ${flight.from || 'Departure'} ➔ ${flight.to || 'Destination'}`;
   const plane = `**Aircraft:** ${flight.aircraft || 'Boeing XXX'}, ${flight.registration || 'SP-XXX'}`;
   
-  // Format time as Hammertime if a timestamp/date object is provided
   let formattedTime = flight.date || flight.staffTime || 'Hammertime';
-  if (flight.timestamp) {
-    const timeInSeconds = Math.floor(new Date(flight.timestamp).getTime() / 1000);
-    formattedTime = `<t:${timeInSeconds}:F>`;
-  } else if (!isNaN(Date.parse(flight.date))) {
-    const timeInSeconds = Math.floor(new Date(flight.date).getTime() / 1000);
+  if (flight.timestamp && !isNaN(flight.timestamp)) {
+    const timeInSeconds = Math.floor(parseInt(flight.timestamp, 10) / (flight.timestamp > 1e11 ? 1000 : 1));
     formattedTime = `<t:${timeInSeconds}:F>`;
   }
-  
-  const dateTime = `**Date & Time:** ${formattedTime}`;
 
   const descriptionText = 
     `### Flight Schedule\n\n` +
     `▶ ${route}\n` +
     `▶ ${plane}\n` +
-    `▶ ${dateTime}\n\n` +
+    `▶ **Date & Time:** ${formattedTime}\n\n` +
     `> **If you wish to allocate yourself to this departure, please click the 👍 reaction below.** By reacting, you are confirming that you will be available for the selected time slot and are committed to attending the session. Please ensure you are able to participate before allocating yourself, as your reaction will be considered a confirmation of your availability.`;
 
-  const flightRoleLines = buildRoleLines(FLIGHT_ROLE_KEYS, allocation);
-  const groundRoleLines = buildRoleLines(GROUND_ROLE_KEYS, allocation);
-
-  const embed = new EmbedBuilder()
+  return new EmbedBuilder()
     .setColor(EMBED_COLOR)
     .setTitle(`🛫 ${flightNumber}`)
     .setDescription(descriptionText);
+}
 
-  // If role allocations are present, add them as fields below
-  if (flightRoleLines || groundRoleLines) {
-    embed.addFields([
+/**
+ * Builds the 1-Hour Briefing Release embed containing roles populated with reacted users
+ */
+function buildBriefingReleaseEmbed(flight, userIds = []) {
+  const flightNumber = flight.number || flight.flightNumber || 'LOXXXX';
+  
+  let userIndex = 0;
+  
+  const formatRoleSection = (keys) => {
+    return keys.map(key => {
+      const role = ROLES.find(r => r.key === key);
+      if (!role) return '';
+
+      const assignedUsers = [];
+      while (userIndex < userIds.length && assignedUsers.length < role.max) {
+        assignedUsers.push(`<@${userIds[userIndex]}>`);
+        userIndex++;
+      }
+
+      const count = `(${assignedUsers.length}/${role.max})`;
+      const members = assignedUsers.length > 0 ? ' ' + assignedUsers.join(', ') : '';
+      return `${role.emoji} **${role.label}** ${count}${members}`;
+    }).filter(Boolean).join('\n');
+  };
+
+  const flightRoleLines = formatRoleSection(FLIGHT_ROLE_KEYS);
+  const groundRoleLines = formatRoleSection(GROUND_ROLE_KEYS);
+
+  return new EmbedBuilder()
+    .setColor(EMBED_COLOR)
+    .setTitle(`📢 Flight Briefing Release — ${flightNumber}`)
+    .setDescription(`Briefing details for flight **${flightNumber}** (${flight.from} ➔ ${flight.to}). Below is the final role roster for allocated personnel.`)
+    .addFields([
       { name: 'Flight Roles', value: flightRoleLines || 'None', inline: false },
       { name: 'Ground Roles', value: groundRoleLines || 'None', inline: false },
-    ]);
-  }
-
-  return embed;
-}
-
-function buildDropdown() {
-  const options = ROLES.map(role =>
-    new StringSelectMenuOptionBuilder()
-      .setLabel(role.label)
-      .setValue(`join_${role.key}`)
-      .setDescription(`Join or leave ${role.label} (max ${role.max})`)
-  );
-
-  const select = new StringSelectMenuBuilder()
-    .setCustomId('role_select')
-    .setPlaceholder('Select a role to allocate or unallocate yourself')
-    .addOptions(options);
-
-  return new ActionRowBuilder().addComponents(select);
-}
-
-function buildButtons() {
-  return [buildDropdown()];
+    ])
+    .setTimestamp();
 }
 
 module.exports = { 
   ROLES, 
-  getRoleConfig, 
-  buildFlightEmbed: buildMainEmbed, 
-  buildAllocationEmbed: buildMainEmbed, 
   buildMainEmbed, 
-  buildButtons, 
-  buildDropdown 
+  buildBriefingReleaseEmbed 
 };
