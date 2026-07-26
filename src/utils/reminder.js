@@ -1,13 +1,26 @@
 const { buildBriefingReleaseEmbed } = require('./embeds');
 
+/**
+ * Parses date input, Unix timestamps, or Discord Hammertime strings like <t:1785082740:F>
+ */
 function parseStaffTime(staffTime) {
   try {
     if (!staffTime) return null;
+
+    // 1. Extract digits if formatted as Hammertime: <t:1785082740:F> -> 1785082740
+    const hammertimeMatch = String(staffTime).match(/<t:(\d+)(?::\w+)?/);
+    if (hammertimeMatch) {
+      staffTime = hammertimeMatch[1];
+    }
+
+    // 2. Parse Unix timestamp (seconds or milliseconds)
     if (!isNaN(staffTime)) {
       const ts = parseInt(staffTime, 10);
       return new Date(ts > 1e11 ? ts : ts * 1000);
     }
-    const cleaned = staffTime.replace(/(\d+)(st|nd|rd|th)/, '$1');
+
+    // 3. Fallback standard date parsing
+    const cleaned = String(staffTime).replace(/(\d+)(st|nd|rd|th)/, '$1');
     const date = new Date(cleaned);
     if (!isNaN(date.getTime())) return date;
   } catch (e) {
@@ -45,7 +58,7 @@ async function scheduleReminders(client, allocation, minutesBefore = 60) {
       const reaction = message.reactions.cache.get('1519638064945954908');
       const reactedMembers = [];
 
-      // Always include the person who ran /postflight (dispatcher)
+      // Include Flight Dispatcher (command author)
       if (allocation.dispatcherId) {
         const dispatcherMember = await channel.guild.members.fetch(allocation.dispatcherId).catch(() => null);
         if (dispatcherMember) reactedMembers.push(dispatcherMember);
@@ -65,7 +78,7 @@ async function scheduleReminders(client, allocation, minutesBefore = 60) {
         }
       }
 
-      // Generate briefing release message
+      // Generate the briefing release message checking members against role IDs
       const briefingContent = buildBriefingReleaseEmbed(flight, reactedMembers);
       const userPings = reactedMembers.map(m => `<@${m.id}>`).join(' ');
 

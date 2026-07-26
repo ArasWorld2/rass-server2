@@ -4,10 +4,10 @@ const ROLES = [
   { key: 'flightSupervisor',    label: 'Flight Supervisor',      discordRoleId: 'ROLE_ID_HERE', emoji: '<:WP_person:1503497022211227850>', max: 2 },
   { key: 'captain',             label: 'Captain',                discordRoleId: 'ROLE_ID_HERE', emoji: '<:WP_man:1503497042071257249>',    max: 1 },
   { key: 'firstOfficer',        label: 'First Officer',          discordRoleId: 'ROLE_ID_HERE', emoji: '<:WP_link:1503497040406253769>',   max: 1 },
-  { key: 'purser',              label: 'Senior Cabin Attendant', discordRoleId: 'ROLE_ID_HERE', emoji: '<:WP_telephone:1503497077588496614>', max: 1 },
-  { key: 'cabinCrew',           label: 'Cabin Crew',             discordRoleId: 'ROLE_ID_HERE', emoji: '<:WP_people:1503497020311343234>', max: 4 },
-  { key: 'groundHandling',      label: 'Turnaround Manager',     discordRoleId: 'ROLE_ID_HERE', emoji: '<:WP_helpdesk:1503497171243110440>', max: 1 },
-  { key: 'tarmacSupervisor',    label: 'Ground Crew',            discordRoleId: 'ROLE_ID_HERE', emoji: '<:WP_passenger:1503497017295376514>', max: 3 },
+  { key: 'purser',              label: 'Senior Cabin Attendant', discordRoleId: '1522601815965700277', emoji: '<:WP_telephone:1503497077588496614>', max: 1 },
+  { key: 'cabinCrew',           label: 'Cabin Crew',             discordRoleId: '1522601469042495569', emoji: '<:WP_people:1503497020311343234>', max: 4 },
+  { key: 'groundHandling',      label: 'Turnaround Manager',     discordRoleId: '1283477756763443291', emoji: '<:WP_helpdesk:1503497171243110440>', max: 1 },
+  { key: 'tarmacSupervisor',    label: 'Ground Crew',            discordRoleId: '1522602272440451255', emoji: '<:WP_passenger:1503497017295376514>', max: 3 },
   { key: 'dispatchCoordinator', label: 'Customer Service',       discordRoleId: 'ROLE_ID_HERE', emoji: '<:WP_share:1503497105908437032>',  max: 3 },
   { key: 'bagDropAgent',        label: 'Bag Drop Agent',         discordRoleId: 'ROLE_ID_HERE', emoji: '<:WP_share:1503497105908437032>', max: 3 },
   { key: 'gateAgent',           label: 'Gate Agent',             discordRoleId: 'ROLE_ID_HERE', emoji: '<:WP_helpdesk:1503497171243110440>', max: 1 },
@@ -28,8 +28,10 @@ function buildMainEmbed(flight) {
   const reg = flight.registration || 'SP-XXX';
 
   let formattedTime = flight.date || flight.staffTime || 'Hammertime';
-  if (flight.timestamp && !isNaN(flight.timestamp)) {
-    const timeInSeconds = Math.floor(parseInt(flight.timestamp, 10) / (flight.timestamp > 1e11 ? 1000 : 1));
+
+  // If passed as raw timestamp digits, format it cleanly into a Discord Hammertime string
+  if (/^\d+$/.test(formattedTime)) {
+    const timeInSeconds = Math.floor(parseInt(formattedTime, 10) / (formattedTime.length > 11 ? 1000 : 1));
     formattedTime = `<t:${timeInSeconds}:F>`;
   }
 
@@ -54,9 +56,9 @@ function buildBriefingReleaseEmbed(flight, members = []) {
       const roleConfig = ROLES.find(r => r.key === key);
       if (!roleConfig) return '';
 
-      // Check if member has the exact Role ID
+      // Match member by role ID
       const matchingMembers = members.filter(member => 
-        member.roles.cache.has(roleConfig.discordRoleId)
+        member.roles && member.roles.cache.has(roleConfig.discordRoleId)
       ).slice(0, roleConfig.max);
 
       const assignedUserPings = matchingMembers.map(m => `<@${m.id}>`);
