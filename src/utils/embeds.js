@@ -1,24 +1,16 @@
-// Mapping internal keys to role details & Discord Role IDs
+// Mapping internal keys to role details, priority order, & Discord Role IDs
 const ROLES = [
-  { key: 'dispatchSupervisor',  label: 'Flight Dispatcher',     discordRoleId: 'ROLE_ID_HERE', emoji: '<:WP_person:1503497022211227850>', max: 1 },
-  { key: 'flightSupervisor',    label: 'Flight Supervisor',      discordRoleId: 'ROLE_ID_HERE', emoji: '<:WP_person:1503497022211227850>', max: 2 },
-  { key: 'captain',             label: 'Captain',                discordRoleId: 'ROLE_ID_HERE', emoji: '<:WP_man:1503497042071257249>',    max: 1 },
-  { key: 'firstOfficer',        label: 'First Officer',          discordRoleId: 'ROLE_ID_HERE', emoji: '<:WP_link:1503497040406253769>',   max: 1 },
-  { key: 'purser',              label: 'Senior Cabin Attendant', discordRoleId: '1522601815965700277', emoji: '<:WP_telephone:1503497077588496614>', max: 1 },
-  { key: 'cabinCrew',           label: 'Cabin Crew',             discordRoleId: '1522601469042495569', emoji: '<:WP_people:1503497020311343234>', max: 4 },
-  { key: 'groundHandling',      label: 'Turnaround Manager',     discordRoleId: '1283477756763443291', emoji: '<:WP_helpdesk:1503497171243110440>', max: 1 },
-  { key: 'tarmacSupervisor',    label: 'Ground Crew',            discordRoleId: '1522602272440451255', emoji: '<:WP_passenger:1503497017295376514>', max: 3 },
-  { key: 'dispatchCoordinator', label: 'Customer Service',       discordRoleId: 'ROLE_ID_HERE', emoji: '<:WP_share:1503497105908437032>',  max: 3 },
-  { key: 'bagDropAgent',        label: 'Bag Drop Agent',         discordRoleId: 'ROLE_ID_HERE', emoji: '<:WP_share:1503497105908437032>', max: 3 },
-  { key: 'gateAgent',           label: 'Gate Agent',             discordRoleId: 'ROLE_ID_HERE', emoji: '<:WP_helpdesk:1503497171243110440>', max: 1 },
-  { key: 'loungeAttendant',     label: 'Lounge Attendant',       discordRoleId: 'ROLE_ID_HERE', emoji: '<:WP_link:197040406253769>', max: 2 },
+  { key: 'captain',          label: 'Captain',               discordRoleId: 'ROLE_ID_HERE', priority: 1, emoji: '<:LOTSArrow:1519637984952061972>', max: 1 },
+  { key: 'firstOfficer',     label: 'First Officer',         discordRoleId: 'ROLE_ID_HERE', priority: 2, emoji: '<:LOTSArrow:1519637984952061972>', max: 1 },
+  { key: 'purser',           label: 'Purser',                discordRoleId: '1522601815965700277', priority: 3, emoji: '<:LOTSArrow:1519637984952061972>', max: 1 },
+  { key: 'cabinCrew',        label: 'Cabin Crew',            discordRoleId: '1522601469042495569', priority: 4, emoji: '<:LOTSArrow:1519637984952061972>', max: 4 },
+  { key: 'groundHandling',   label: 'Ramp Supervisor',       discordRoleId: '1283477756763443291', priority: 5, emoji: '<:LOTSArrow:1519637984952061972>', max: 1 },
+  { key: 'tarmacSupervisor', label: 'Ramp Agents',           discordRoleId: '1522602272440451255', priority: 6, emoji: '<:LOTSArrow:1519637984952061972>', max: 3 },
+  { key: 'gateAgent',        label: 'Gate Agent',            discordRoleId: 'ROLE_ID_HERE', priority: 7, emoji: '<:LOTSArrow:1519637984952061972>', max: 1 },
 ];
 
-const FLIGHT_ROLE_KEYS = ['dispatchSupervisor', 'flightSupervisor', 'captain', 'firstOfficer', 'purser', 'cabinCrew', 'groundHandling', 'tarmacSupervisor'];
-const GROUND_ROLE_KEYS = ['dispatchCoordinator', 'bagDropAgent', 'gateAgent', 'loungeAttendant'];
-
 /**
- * Builds initial plain-text flight schedule message (NO embed card)
+ * Builds initial plain-text flight schedule message
  */
 function buildMainEmbed(flight) {
   const flightNumber = flight.number || flight.flightNumber || 'LOXXXX';
@@ -29,7 +21,6 @@ function buildMainEmbed(flight) {
 
   let formattedTime = flight.date || flight.staffTime || 'Hammertime';
 
-  // If passed as raw timestamp digits, format it cleanly into a Discord Hammertime string
   if (/^\d+$/.test(formattedTime)) {
     const timeInSeconds = Math.floor(parseInt(formattedTime, 10) / (formattedTime.length > 11 ? 1000 : 1));
     formattedTime = `<t:${timeInSeconds}:F>`;
@@ -46,37 +37,72 @@ function buildMainEmbed(flight) {
 }
 
 /**
- * Builds the 1-Hour Briefing Release text message matching members by Role IDs
+ * Builds the 1-Hour Briefing Release matching your requested format
  */
 function buildBriefingReleaseEmbed(flight, members = []) {
   const flightNumber = flight.number || flight.flightNumber || 'LOXXXX';
+  const from = flight.from || 'DEST';
+  const to = flight.to || 'ARRIVAL';
+  const aircraft = `${flight.aircraft || 'Boeing XXX'}, ${flight.registration || 'SP-XXX'}`;
 
-  const formatRoleSection = (keys) => {
-    return keys.map(key => {
-      const roleConfig = ROLES.find(r => r.key === key);
-      if (!roleConfig) return '';
+  let formattedTime = flight.date || flight.timestamp || 'TBA';
+  if (/^\d+$/.test(formattedTime)) {
+    const timeInSeconds = Math.floor(parseInt(formattedTime, 10) / (formattedTime.length > 11 ? 1000 : 1));
+    formattedTime = `<t:${timeInSeconds}:F>`;
+  }
 
-      // Match member by role ID
-      const matchingMembers = members.filter(member => 
-        member.roles && member.roles.cache.has(roleConfig.discordRoleId)
-      ).slice(0, roleConfig.max);
+  // 1. Sort defined roles by priority
+  const sortedRoles = [...ROLES].sort((a, b) => a.priority - b.priority);
 
-      const assignedUserPings = matchingMembers.map(m => `<@${m.id}>`);
-      const count = `(${assignedUserPings.length}/${roleConfig.max})`;
-      const membersStr = assignedUserPings.length > 0 ? ' ' + assignedUserPings.join(', ') : '';
+  // 2. Track assigned assignments and occupied user IDs
+  const assignments = {};
+  ROLES.forEach(r => assignments[r.key] = []);
+  const assignedUserIds = new Set();
 
-      return `${roleConfig.emoji} **${roleConfig.label}** ${count}${membersStr}`;
-    }).filter(Boolean).join('\n');
+  // 3. Process each role in priority order to prevent double assignments
+  for (const roleConfig of sortedRoles) {
+    if (!roleConfig.discordRoleId || roleConfig.discordRoleId === 'ROLE_ID_HERE') continue;
+
+    for (const member of members) {
+      if (assignments[roleConfig.key].length >= roleConfig.max) break;
+      if (assignedUserIds.has(member.id)) continue;
+
+      if (member.roles && member.roles.cache.has(roleConfig.discordRoleId)) {
+        assignments[roleConfig.key].push(member.id);
+        assignedUserIds.add(member.id);
+      }
+    }
+  }
+
+  // Helper to format assigned members string
+  const getRoleText = (key) => {
+    const ids = assignments[key] || [];
+    return ids.length > 0 ? ids.map(id => `<@${id}>`).join(', ') : '';
   };
 
-  const flightRoleLines = formatRoleSection(FLIGHT_ROLE_KEYS);
-  const groundRoleLines = formatRoleSection(GROUND_ROLE_KEYS);
+  const dispatcherMention = flight.dispatcherId ? `<@${flight.dispatcherId}>` : '';
 
   return (
-    `# 📢 Flight Briefing Release — ${flightNumber}\n` +
-    `Briefing details for flight **${flightNumber}** (${flight.from} → ${flight.to}). Below is the final role roster for allocated personnel:\n\n` +
-    `### Flight Roles\n${flightRoleLines || 'None'}\n\n` +
-    `### Ground Roles\n${groundRoleLines || 'None'}`
+    `## <:LOTTail:1243912109125795920> ${flightNumber}\n` +
+    `-# Flight Briefing\n\n` +
+    `**Route:** ${from} --> ${to}\n` +
+    `**Aircraft:** ${aircraft}\n` +
+    `**Date & Time:** ${formattedTime}\n` +
+    `**Flight Dispatcher:** ${dispatcherMention}\n` +
+    `**Gate & Stand:** ${flight.gate || 'TBA'}\n` +
+    `**Departure Runway:** ${flight.depRunway || 'TBA'}\n` +
+    `**Arrival Runway:** ${flight.arrRunway || 'TBA'}\n\n` +
+    `**Flight Crew**\n` +
+    `<:LOTSArrow:1519637984952061972> **Captain:** ${getRoleText('captain')}\n` +
+    `<:LOTSArrow:1519637984952061972> **First Officer:** ${getRoleText('firstOfficer')}\n\n` +
+    `<:LOTSArrow:1519637984952061972> **Purser:** ${getRoleText('purser')}\n` +
+    `<:LOTSArrow:1519637984952061972> **Cabin Crew:** ${getRoleText('cabinCrew')}\n\n` +
+    `**On-Ground Crew**\n` +
+    `<:LOTSArrow:1519637984952061972> **Ramp Supervisor:** ${getRoleText('groundHandling')}\n` +
+    `<:LOTSArrow:1519637984952061972> **Ramp Agents:** ${getRoleText('tarmacSupervisor')}\n\n` +
+    `<:LOTSArrow:1519637984952061972> **Priority Bag Drop:** *Purser*\n` +
+    `<:LOTSArrow:1519637984952061972> **Non-Priority:** *Cabin crew*\n` +
+    `<:LOTSArrow:1519637984952061972> **Gate Agent:** ${getRoleText('gateAgent')}`
   );
 }
 
