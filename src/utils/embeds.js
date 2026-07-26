@@ -1,23 +1,24 @@
+// Mapping internal keys to role details & Discord Role IDs
 const ROLES = [
-  { key: 'dispatchSupervisor',  label: 'Flight Dispatcher',     emoji: '<:WP_person:1503497022211227850>', max: 1 },
-  { key: 'flightSupervisor',    label: 'Flight Supervisor',      emoji: '<:WP_person:1503497022211227850>', max: 2 },
-  { key: 'captain',             label: 'Captain',                emoji: '<:WP_man:1503497042071257249>',    max: 1 },
-  { key: 'firstOfficer',        label: 'First Officer',          emoji: '<:WP_link:1503497040406253769>',   max: 1 },
-  { key: 'purser',              label: 'Senior Cabin Attendant', emoji: '<:WP_telephone:1503497077588496614>', max: 1 },
-  { key: 'cabinCrew',           label: 'Cabin Crew',             emoji: '<:WP_people:1503497020311343234>', max: 4 },
-  { key: 'groundHandling',      label: 'Turnaround Manager',     emoji: '<:WP_helpdesk:1503497171243110440>', max: 1 },
-  { key: 'tarmacSupervisor',    label: 'Ground Crew',            emoji: '<:WP_passenger:1503497017295376514>', max: 3 },
-  { key: 'dispatchCoordinator', label: 'Customer Service',       emoji: '<:WP_share:1503497105908437032>',  max: 3 },
-  { key: 'bagDropAgent',        label: 'Bag Drop Agent',         emoji: '<:WP_share:1503497105908437032>', max: 3 },
-  { key: 'gateAgent',           label: 'Gate Agent',             emoji: '<:WP_helpdesk:1503497171243110440>', max: 1 },
-  { key: 'loungeAttendant',     label: 'Lounge Attendant',       emoji: '<:WP_link:197040406253769>', max: 2 },
+  { key: 'dispatchSupervisor',  label: 'Flight Dispatcher',     discordRoleId: 'ROLE_ID_HERE', emoji: '<:WP_person:1503497022211227850>', max: 1 },
+  { key: 'flightSupervisor',    label: 'Flight Supervisor',      discordRoleId: 'ROLE_ID_HERE', emoji: '<:WP_person:1503497022211227850>', max: 2 },
+  { key: 'captain',             label: 'Captain',                discordRoleId: 'ROLE_ID_HERE', emoji: '<:WP_man:1503497042071257249>',    max: 1 },
+  { key: 'firstOfficer',        label: 'First Officer',          discordRoleId: 'ROLE_ID_HERE', emoji: '<:WP_link:1503497040406253769>',   max: 1 },
+  { key: 'purser',              label: 'Senior Cabin Attendant', discordRoleId: 'ROLE_ID_HERE', emoji: '<:WP_telephone:1503497077588496614>', max: 1 },
+  { key: 'cabinCrew',           label: 'Cabin Crew',             discordRoleId: 'ROLE_ID_HERE', emoji: '<:WP_people:1503497020311343234>', max: 4 },
+  { key: 'groundHandling',      label: 'Turnaround Manager',     discordRoleId: 'ROLE_ID_HERE', emoji: '<:WP_helpdesk:1503497171243110440>', max: 1 },
+  { key: 'tarmacSupervisor',    label: 'Ground Crew',            discordRoleId: 'ROLE_ID_HERE', emoji: '<:WP_passenger:1503497017295376514>', max: 3 },
+  { key: 'dispatchCoordinator', label: 'Customer Service',       discordRoleId: 'ROLE_ID_HERE', emoji: '<:WP_share:1503497105908437032>',  max: 3 },
+  { key: 'bagDropAgent',        label: 'Bag Drop Agent',         discordRoleId: 'ROLE_ID_HERE', emoji: '<:WP_share:1503497105908437032>', max: 3 },
+  { key: 'gateAgent',           label: 'Gate Agent',             discordRoleId: 'ROLE_ID_HERE', emoji: '<:WP_helpdesk:1503497171243110440>', max: 1 },
+  { key: 'loungeAttendant',     label: 'Lounge Attendant',       discordRoleId: 'ROLE_ID_HERE', emoji: '<:WP_link:197040406253769>', max: 2 },
 ];
 
 const FLIGHT_ROLE_KEYS = ['dispatchSupervisor', 'flightSupervisor', 'captain', 'firstOfficer', 'purser', 'cabinCrew', 'groundHandling', 'tarmacSupervisor'];
 const GROUND_ROLE_KEYS = ['dispatchCoordinator', 'bagDropAgent', 'gateAgent', 'loungeAttendant'];
 
 /**
- * Builds the plain-text flight schedule message (no embed container)
+ * Builds initial plain-text flight schedule message (NO embed card)
  */
 function buildMainEmbed(flight) {
   const flightNumber = flight.number || flight.flightNumber || 'LOXXXX';
@@ -43,26 +44,26 @@ function buildMainEmbed(flight) {
 }
 
 /**
- * Builds the 1-Hour Briefing Release text message with filled role allocations
+ * Builds the 1-Hour Briefing Release text message matching members by Role IDs
  */
-function buildBriefingReleaseEmbed(flight, userIds = []) {
+function buildBriefingReleaseEmbed(flight, members = []) {
   const flightNumber = flight.number || flight.flightNumber || 'LOXXXX';
-  let userIndex = 0;
 
   const formatRoleSection = (keys) => {
     return keys.map(key => {
-      const role = ROLES.find(r => r.key === key);
-      if (!role) return '';
+      const roleConfig = ROLES.find(r => r.key === key);
+      if (!roleConfig) return '';
 
-      const assignedUsers = [];
-      while (userIndex < userIds.length && assignedUsers.length < role.max) {
-        assignedUsers.push(`<@${userIds[userIndex]}>`);
-        userIndex++;
-      }
+      // Check if member has the exact Role ID
+      const matchingMembers = members.filter(member => 
+        member.roles.cache.has(roleConfig.discordRoleId)
+      ).slice(0, roleConfig.max);
 
-      const count = `(${assignedUsers.length}/${role.max})`;
-      const members = assignedUsers.length > 0 ? ' ' + assignedUsers.join(', ') : '';
-      return `${role.emoji} **${role.label}** ${count}${members}`;
+      const assignedUserPings = matchingMembers.map(m => `<@${m.id}>`);
+      const count = `(${assignedUserPings.length}/${roleConfig.max})`;
+      const membersStr = assignedUserPings.length > 0 ? ' ' + assignedUserPings.join(', ') : '';
+
+      return `${roleConfig.emoji} **${roleConfig.label}** ${count}${membersStr}`;
     }).filter(Boolean).join('\n');
   };
 

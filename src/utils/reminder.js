@@ -43,23 +43,38 @@ async function scheduleReminders(client, allocation, minutesBefore = 60) {
 
       // Collect users who reacted with <:LOTSYes:1519638064945954908>
       const reaction = message.reactions.cache.get('1519638064945954908');
-      const userIds = [];
+      const reactedMembers = [];
+
+      // Always include the person who ran /postflight (dispatcher)
+      if (allocation.dispatcherId) {
+        const dispatcherMember = await channel.guild.members.fetch(allocation.dispatcherId).catch(() => null);
+        if (dispatcherMember) reactedMembers.push(dispatcherMember);
+      }
 
       if (reaction) {
         const users = await reaction.users.fetch();
-        users.filter(u => !u.bot).forEach(u => userIds.push(u.id));
+        const nonBotUsers = users.filter(u => !u.bot && u.id !== allocation.dispatcherId);
+
+        for (const [userId] of nonBotUsers) {
+          try {
+            const member = await channel.guild.members.fetch(userId);
+            if (member) reactedMembers.push(member);
+          } catch (err) {
+            console.warn(`Could not fetch guild member profile for ${userId}:`, err.message);
+          }
+        }
       }
 
-      // Generate the briefing release message containing role roster
-      const briefingContent = buildBriefingReleaseEmbed(flight, userIds);
-      const userPings = userIds.map(id => `<@${id}>`).join(' ');
+      // Generate briefing release message
+      const briefingContent = buildBriefingReleaseEmbed(flight, reactedMembers);
+      const userPings = reactedMembers.map(m => `<@${m.id}>`).join(' ');
 
-      // Post the briefing release in channel
+      // Send 1h briefing release message in channel
       await channel.send({
         content: `📢 **1-HOUR FLIGHT BRIEFING RELEASE** ${userPings}\n\n${briefingContent}`
       });
 
-      console.log(`✅ Released briefing for flight ${flight.number} with ${userIds.length} allocated users.`);
+      console.log(`✅ Released briefing for flight ${flight.number} with ${reactedMembers.length} allocated members.`);
     } catch (err) {
       console.error('Error executing scheduled briefing release:', err);
     }

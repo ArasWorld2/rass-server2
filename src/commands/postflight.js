@@ -31,20 +31,21 @@ module.exports = {
 
     const messageContent = buildMainEmbed(flight);
 
-    // Send as plain text content (No embed box)
+    // Send plain message text (No embed container)
     const message = await interaction.channel.send({ content: messageContent });
 
-    // React with the custom LOTSYes reaction
+    // React with custom LOTSYes reaction
     await message.react('1519638064945954908');
 
-    // Store record in MongoDB
+    // Save allocation record in DB including the host's ID as dispatcher
     const allocation = await Allocation.create({
       messageId: message.id,
       channelId: interaction.channelId,
+      dispatcherId: interaction.user.id, // Stores the user who ran /postflight
       flight,
     });
 
-    // Schedule 1h briefing release automation
+    // Schedule briefing release for 1 hour prior to flight
     scheduleReminders(interaction.client, allocation, 60);
 
     await interaction.editReply(`✅ Flight **${flight.number}** schedule posted! Briefing release scheduled for 1 hour prior to departure.`);
