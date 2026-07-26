@@ -1,82 +1,30 @@
-const { buildBriefingReleaseEmbed } = require('./embeds');
+const { SlashCommandBuilder } = require('discord.js');
+const Allocation = require('../models/Allocation');
+const { scheduleReminders } = require('../utils/reminder');
+const { checkRole } = require('../utils/checkRole');
 
-function parseStaffTime(staffTime) {
-  try {
-    if (!staffTime) return null;
+module.exports = {
+  data: new SlashCommandBuilder()
+    .setName('remind')
+    .setDescription('Manually trigger or reschedule briefing reminders for a flight')
+    .addStringOption(o => o.setName('message_id').setDescription('The message ID of the flight post').setRequired(true))
+    .addIntegerOption(o => o.setName('minutes').setDescription('Minutes prior to flight departure to release briefing').setRequired(false)),
 
-    const hammertimeMatch = String(staffTime).match(/<t:(\d+)(?::\w+)?/);
-    if (hammertimeMatch) {
-      staffTime = hammertimeMatch[1];
+  async execute(interaction) {
+    if (!await checkRole(interaction)) return;
+    await interaction.deferReply({ flags: 64 });
+
+    const messageId = interaction.options.getString('message_id');
+    const minutes = interaction.options.getInteger('minutes') ?? 60;
+
+    const allocation = await Allocation.findOne({ messageId });
+
+    if (!allocation) {
+      return interaction.editReply(`❌ Could not find a flight record associated with message ID \`${messageId}\`.`);
     }
 
-    if (!isNaN(staffTime)) {
-      const ts = parseInt(staffTime, 10);
-      return new Date(ts > 1e11 ? ts : ts * 1000);
-    }
+    scheduleReminders(interaction.client, allocation, minutes);
 
-    const cleaned = String(staffTime).replace(/(\d+)(st|nd|rd|th)/, '$1');
-    const date = new Date(cleaned);
-    if (!isNaN(date.getTime())) return date;
-  } catch (e) {
-    console.error('Failed to parse flight date:', e);
-  }
-  return null;
-}
-
-async function scheduleReminders(client, allocation, minutesBefore = 60) {
-  const flight = allocation.flight || {};
-  const timeStr = flight.date || flight.timestamp;
-  const staffDate = parseStaffTime(timeStr);
-
-  if (!staffDate) {
-    console.warn(`Could not parse departure time for ${flight.number}: "${timeStr}"`);
-    return;
-  }
-
-  const reminderTime = new Date(staffDate.getTime() - minutesBefore * 60 * 1000);
-  const delay = reminderTime.getTime() - Date.now();
-
-  if (delay <= 0) return;
-
-  console.log(`⏰ Briefing release scheduled for flight ${flight.number} in ${Math.round(delay / 60000)} minutes.`);
-
-  setTimeout(async () => {
-    try {
-      const channel = await client.channels.fetch(allocation.channelId).catch(() => null);
-      if (!channel) return;
-
-      const message = await channel.messages.fetch(allocation.messageId).catch(() => null);
-      if (!message) return;
-
-      // Collect users who reacted with custom LOTSYes emoji (1519638064945954908)
-      const reaction = message.reactions.cache.get('1519638064945954908');
-      const reactedMembers = [];
-
-      if (reaction) {
-        const users = await reaction.users.fetch();
-        const nonBotUsers = users.filter(u => !u.bot && u.id !== allocation.dispatcherId);
-
-        for (const [userId] of nonBotUsers) {
-          try {
-            const member = await channel.guild.members.fetch(userId);
-            if (member) reactedMembers.push(member);
-          } catch (err) {
-            console.warn(`Could not fetch guild member profile for ${userId}:`, err.message);
-          }
-        }
-      }
-
-      // Generate the briefing release content
-      const briefingContent = buildBriefingReleaseEmbed(flight, reactedMembers, allocation.dispatcherId);
-
-      // Post 1h briefing release directly
-      await channel.send({ content: briefingContent });
-
-      console.log(`✅ Released briefing for flight ${flight.number} with ${reactedMembers.length} allocated members.`);
-    } catch (err) {
-      console.error('Error executing scheduled briefing release:', err);
-    }
-  }, delay);
-}
-
-module.exports = { scheduleReminders, parseStaffTime };
+    await interaction.editReply(`✅ Briefing release scheduled for flight **${allocation.flight?.number || 'N/A'}** **${minutes} minutes** prior to departure.`);
+  },
+};

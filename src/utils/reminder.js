@@ -4,7 +4,6 @@ function parseStaffTime(staffTime) {
   try {
     if (!staffTime) return null;
 
-    // Extract raw digits if formatted as Hammertime: <t:1785082740:F> -> 1785082740
     const hammertimeMatch = String(staffTime).match(/<t:(\d+)(?::\w+)?/);
     if (hammertimeMatch) {
       staffTime = hammertimeMatch[1];
@@ -49,15 +48,9 @@ async function scheduleReminders(client, allocation, minutesBefore = 60) {
       const message = await channel.messages.fetch(allocation.messageId).catch(() => null);
       if (!message) return;
 
-      // Collect users who reacted with <:LOTSYes:1519638064945954908>
+      // Collect users who reacted with custom LOTSYes reaction
       const reaction = message.reactions.cache.get('1519638064945954908');
       const reactedMembers = [];
-
-      // Include Flight Dispatcher (command author)
-      if (allocation.dispatcherId) {
-        const dispatcherMember = await channel.guild.members.fetch(allocation.dispatcherId).catch(() => null);
-        if (dispatcherMember) reactedMembers.push(dispatcherMember);
-      }
 
       if (reaction) {
         const users = await reaction.users.fetch();
@@ -73,16 +66,11 @@ async function scheduleReminders(client, allocation, minutesBefore = 60) {
         }
       }
 
-      // Generate the briefing release message
-      const briefingContent = buildBriefingReleaseEmbed({
-        ...flight,
-        dispatcherId: allocation.dispatcherId
-      }, reactedMembers);
+      // Generate the briefing release content
+      const briefingContent = buildBriefingReleaseEmbed(flight, reactedMembers, allocation.dispatcherId);
 
-      // Send 1h briefing release directly without top announcement header
-      await channel.send({
-        content: briefingContent
-      });
+      // Post 1h briefing release directly
+      await channel.send({ content: briefingContent });
 
       console.log(`✅ Released briefing for flight ${flight.number} with ${reactedMembers.length} allocated members.`);
     } catch (err) {
